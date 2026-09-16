@@ -57,12 +57,7 @@ jobs:
         with:
           name: Douyin-Liquid-Glass-compileSdk37-fixed
           path: project/app/build/outputs/apk/**/*.apk
-          if-no-files-found: error      - name: Find APK
-        run: |
-          find project/app/build/outputs/apk -type f -name "*.apk" -print
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+          if-no-files-found: error        uses: actions/upload-artifact@v4
         with:
           name: Douyin-Liquid-Glass-compileSdk37-fixed
           path: project/app/build/outputs/apk/**/*.apk
