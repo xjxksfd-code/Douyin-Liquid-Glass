@@ -45,10 +45,19 @@ jobs:
         run: |
           chmod +x project/gradlew
 
-      - name: Build APK
+      - name: Check Gradle environment
         working-directory: project
         run: |
-          ./gradlew :app:assembleDebug --no-daemon
+          ./gradlew --version
+
+      - name: Build APK with detailed log
+        working-directory: project
+        run: |
+          ./gradlew :app:assembleDebug \
+            --no-daemon \
+            --stacktrace \
+            --info \
+            --console=plain
 
       - name: Find APK
         run: |
