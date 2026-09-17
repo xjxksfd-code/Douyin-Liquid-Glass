@@ -5,7 +5,7 @@ on:
   push:
     branches: ["main"]
     paths:
-      - "Douyin-Liquid-Glass-v8-no-plus-length-200-build-ready.zip"
+      - "Douyin-Liquid-Glass-v9-bottom-glass-fix-build-ready.zip"
       - ".github/workflows/build.yml"
 
 jobs:
@@ -40,7 +40,7 @@ jobs:
       - name: Extract project
         run: |
           mkdir project
-          unzip -q "Douyin-Liquid-Glass-v8-no-plus-length-200-build-ready.zip" -d project
+          unzip -q "Douyin-Liquid-Glass-v9-bottom-glass-fix-build-ready.zip" -d project
 
       - name: Make Gradle executable
         run: |
@@ -87,6 +87,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Douyin-Liquid-Glass-v8-no-plus-length-200
+          name: Douyin-Liquid-Glass-v9-bottom-glass-fix
           path: project/app/build/outputs/apk/**/*.apk
           if-no-files-found: error
