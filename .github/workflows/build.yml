@@ -3,9 +3,10 @@ name: Build APK
 on:
   workflow_dispatch:
   push:
+    branches: ["main"]
     paths:
-      - 'Douyin-Liquid-Glass-compileSdk37-agp9-build-ready.zip'
-      - '.github/workflows/build.yml'
+      - "Douyin-Liquid-Glass-v5-more-transparent-build-ready.zip"
+      - ".github/workflows/build.yml"
 
 jobs:
   build:
@@ -19,12 +20,12 @@ jobs:
         uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: "21"
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
         with:
-          packages: ''
+          packages: ""
 
       - name: Accept Android SDK licenses
         run: |
@@ -39,7 +40,7 @@ jobs:
       - name: Extract project
         run: |
           mkdir project
-          unzip -q Douyin-Liquid-Glass-compileSdk37-agp9-build-ready.zip -d project
+          unzip -q "Douyin-Liquid-Glass-v5-more-transparent-build-ready.zip" -d project
 
       - name: Make Gradle executable
         run: |
@@ -50,7 +51,7 @@ jobs:
         run: |
           ./gradlew --version
 
-      - name: Build APK with detailed log
+      - name: Build APK
         working-directory: project
         run: |
           ./gradlew :app:assembleDebug \
@@ -66,6 +67,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Douyin-Liquid-Glass-compileSdk37-agp9-fixed
+          name: Douyin-Liquid-Glass-v6-size-control-transparent
           path: project/app/build/outputs/apk/**/*.apk
           if-no-files-found: error
