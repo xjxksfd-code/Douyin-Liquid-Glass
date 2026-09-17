@@ -6,8 +6,11 @@ on:
     branches:
       - main
     paths:
-      - "Douyin-Liquid-Glass-v5-size-control-auto-bottom-vertical-control-build-ready-3.zip"
+      - "Douyin-Liquid-Glass-v6-size-length-position-build-ready.zip"
       - ".github/workflows/build.yml"
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -40,24 +43,30 @@ jobs:
       - name: Extract project
         run: |
           rm -rf project
-          mkdir project
-          unzip -q "Douyin-Liquid-Glass-v5-size-control-auto-bottom-vertical-control-build-ready-3.zip" -d project
+          mkdir -p project
+          unzip -q "Douyin-Liquid-Glass-v6-size-length-position-build-ready.zip" -d project
 
       - name: Find project root
         run: |
-          echo "ZIP contents:"
-          find project -maxdepth 3 -type f | head -100
+          echo "Searching for Gradle project..."
+          find project -name "gradlew" -type f -print
 
       - name: Make Gradle executable
         run: |
-          GRADLEW=$(find project -name gradlew -type f | head -1)
-          echo "gradlew: $GRADLEW"
+          GRADLEW=$(find project -name "gradlew" -type f | head -1)
+
+          if [ -z "$GRADLEW" ]; then
+            echo "ERROR: gradlew not found!"
+            exit 1
+          fi
+
           chmod +x "$GRADLEW"
           echo "GRADLEW=$GRADLEW" >> "$GITHUB_ENV"
 
-      - name: Configure Maven
+      - name: Configure Maven repositories
         run: |
           mkdir -p ~/.gradle
+
           cat > ~/.gradle/init.gradle <<'EOF'
           allprojects {
               buildscript {
@@ -74,10 +83,17 @@ jobs:
           }
           EOF
 
+      - name: Check Gradle
+        run: |
+          PROJECT_DIR=$(dirname "$GRADLEW")
+          cd "$PROJECT_DIR"
+          ./gradlew --version
+
       - name: Build APK
         run: |
           PROJECT_DIR=$(dirname "$GRADLEW")
           cd "$PROJECT_DIR"
+
           ./gradlew :app:assembleDebug \
             --no-daemon \
             --stacktrace \
@@ -86,11 +102,12 @@ jobs:
 
       - name: Find APK
         run: |
+          echo "APK files:"
           find project -type f -name "*.apk" -print
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Douyin-Liquid-Glass-build-ready-3
+          name: Douyin-Liquid-Glass-v6
           path: project/**/build/outputs/apk/**/*.apk
           if-no-files-found: error
