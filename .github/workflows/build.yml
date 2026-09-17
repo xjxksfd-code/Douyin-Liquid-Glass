@@ -46,6 +46,60 @@ jobs:
         run: |
           chmod +x project/gradlew
 
+      - name: Configure Maven repositories
+        working-directory: project
+        run: |
+          cat > ~/.gradle/init.gradle <<'EOF'
+          allprojects {
+              buildscript {
+                  repositories {
+                      google()
+                      mavenCentral()
+                  }
+              }
+
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          EOF
+
+      - name: Check Gradle environment
+        working-directory: project
+        run: |
+          ./gradlew --version
+
+      - name: Build APK
+        working-directory: project
+        run: |
+          ./gradlew :app:assembleDebug \
+            --no-daemon \
+            --stacktrace \
+            --info \
+            --console=plain
+
+      - name: Find APK
+        run: |
+          find project/app/build/outputs/apk -type f -name "*.apk" -print
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Douyin-Liquid-Glass-v5-size-control-fixed
+          path: project/app/build/outputs/apk/**/*.apk
+          if-no-files-found: error            "platforms;android-37.0" \
+            "build-tools;37.0.0"
+
+      - name: Extract project
+        run: |
+          mkdir project
+          unzip -q "Douyin-Liquid-Glass-v5-size-control-fixed-build-ready-2.zip" -d project
+
+      - name: Make Gradle executable
+        run: |
+          chmod +x project/gradlew
+
       - name: Check Gradle environment
         working-directory: project
         run: |
