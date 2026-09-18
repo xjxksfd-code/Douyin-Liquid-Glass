@@ -1,13 +1,7 @@
-name: Build APK
+name: Build Douyin-Liquid-Glass
 
 on:
   workflow_dispatch:
-
-  push:
-    branches: ["main"]
-    paths:
-      - "Douyin-Liquid-Glass-v15-hierarchy-diagnostic-v3.zip"
-      - ".github/workflows/build.yml"
 
 jobs:
   build:
@@ -18,81 +12,42 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "21"
+          java-version: '21'
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v4
-        with:
-          packages: ""
-
-      - name: Accept Android SDK licenses
-        run: |
-          yes | sdkmanager --licenses >/dev/null || true
+        uses: android-actions/setup-android@v3
 
       - name: Install Android SDK 37
         run: |
-          sdkmanager --install \
-            "platforms;android-37.0" \
-            "build-tools;37.0.0"
+          yes | sdkmanager --licenses || true
+          sdkmanager "platforms;android-37" "build-tools;37.0.0"
 
-      - name: Extract project
-        run: |
-          mkdir project
-          unzip -q "Douyin-Liquid-Glass-v15-hierarchy-diagnostic-v3.zip" -d project
-
-      - name: Make Gradle executable
-        working-directory: project
-        run: |
-          chmod +x gradlew
-
-      - name: Configure Maven repositories
-        working-directory: project
-        run: |
-          mkdir -p ~/.gradle
-
-          cat > ~/.gradle/init.gradle <<'EOF'
-          allprojects {
-              buildscript {
-                  repositories {
-                      google()
-                      mavenCentral()
-                  }
-              }
-
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-          EOF
-
-      - name: Check Gradle environment
-        working-directory: project
-        run: |
-          ./gradlew --version
+      - name: Grant Gradle permission
+        run: chmod +x ./gradlew
 
       - name: Build APK
-        working-directory: project
         run: |
-          ./gradlew :app:assembleDebug \
-            --no-daemon \
-            --stacktrace \
-            --info \
-            --console=plain
+          ./gradlew assembleRelease --no-daemon
 
-      - name: Find APK
+      - name: Rename APK
         run: |
-          find project/app/build/outputs/apk \
-            -type f \
-            -name "*.apk" \
-            -print
+          mkdir -p release
+          cp app/build/outputs/apk/release/*.apk \
+            release/Douyin-Liquid-Glass-v15-diagnostic-instrumented.apk
 
-      - name: Upload APK
+      - name: Create ZIP
+        run: |
+          cd release
+          zip -j \
+            ../Douyin-Liquid-Glass-v15-diagnostic-instrumented.zip \
+            Douyin-Liquid-Glass-v15-diagnostic-instrumented.apk
+
+      - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Douyin-Liquid-Glass-v15-hierarchy-diagnostic-v3
-          path: project/app/build/outputs/apk/**/*.apk
+          name: Douyin-Liquid-Glass-v15-diagnostic-instrumented
+          path: Douyin-Liquid-Glass-v15-diagnostic-instrumented.zip
           if-no-files-found: error
