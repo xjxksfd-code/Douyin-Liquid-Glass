@@ -1,4 +1,4 @@
-name: Build Douyin-Liquid-Glass
+name: Build Douyin Liquid Glass Diagnostic
 
 on:
   workflow_dispatch:
@@ -16,36 +16,72 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+          cache: gradle
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
 
       - name: Install Android SDK 37
         run: |
           yes | sdkmanager --licenses || true
-          sdkmanager "platforms;android-37" "build-tools;37.0.0"
+          sdkmanager "platforms;android-37" "build-tools;37.0.0" "platform-tools"
 
-      - name: Grant Gradle permission
+      - name: Prepare Gradle repositories
+        run: |
+          mkdir -p ~/.gradle
+
+          cat > ~/.gradle/init.gradle <<'EOF'
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+
+          settingsEvaluated { settings ->
+              settings.pluginManagement {
+                  repositories {
+                      google()
+                      mavenCentral()
+                      gradlePluginPortal()
+                  }
+              }
+
+              settings.dependencyResolutionManagement {
+                  repositories {
+                      google()
+                      mavenCentral()
+                  }
+              }
+          }
+          EOF
+
+      - name: Make Gradle executable
         run: chmod +x ./gradlew
 
-      - name: Build APK
-        run: |
-          ./gradlew assembleRelease --no-daemon
+      - name: Build Release APK
+        run: ./gradlew assembleRelease --stacktrace
 
-      - name: Rename APK
+      - name: Find APK
         run: |
-          mkdir -p release
-          cp app/build/outputs/apk/release/*.apk \
-            release/Douyin-Liquid-Glass-v15-diagnostic-instrumented.apk
+          echo "=== APK files ==="
+          find . -type f -name "*.apk" -print
 
-      - name: Create ZIP
+      - name: Package diagnostic APK
         run: |
-          cd release
-          zip -j \
-            ../Douyin-Liquid-Glass-v15-diagnostic-instrumented.zip \
-            Douyin-Liquid-Glass-v15-diagnostic-instrumented.apk
+          mkdir -p diagnostic-output
 
-      - name: Upload build artifact
+          find . -type f -name "*.apk" -exec cp {} diagnostic-output/ \;
+
+          echo "=== Packaged files ==="
+          ls -lah diagnostic-output
+
+          cd diagnostic-output
+          zip -r ../Douyin-Liquid-Glass-v15-diagnostic-instrumented.zip .
+
+      - name: Upload diagnostic build
         uses: actions/upload-artifact@v4
         with:
           name: Douyin-Liquid-Glass-v15-diagnostic-instrumented
