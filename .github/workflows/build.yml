@@ -12,11 +12,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
-          cache: gradle
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
@@ -58,13 +57,24 @@ jobs:
           }
           EOF
 
+      - name: Enter project directory
+        working-directory: project
+        run: |
+          echo "=== Project files ==="
+          ls -la
+          echo "=== Gradle files ==="
+          find . -maxdepth 3 \( -name "gradlew" -o -name "settings.gradle*" -o -name "build.gradle*" \) -print
+
       - name: Make Gradle executable
+        working-directory: project
         run: chmod +x ./gradlew
 
       - name: Build Release APK
+        working-directory: project
         run: ./gradlew assembleRelease --stacktrace
 
       - name: Find APK
+        working-directory: project
         run: |
           echo "=== APK files ==="
           find . -type f -name "*.apk" -print
@@ -73,7 +83,7 @@ jobs:
         run: |
           mkdir -p diagnostic-output
 
-          find . -type f -name "*.apk" -exec cp {} diagnostic-output/ \;
+          find project -type f -name "*.apk" -exec cp {} diagnostic-output/ \;
 
           echo "=== Packaged files ==="
           ls -lah diagnostic-output
