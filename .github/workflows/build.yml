@@ -5,7 +5,7 @@ on:
   push:
     branches: ["main"]
     paths:
-      - "Douyin-Liquid-Glass-v15-black-edge-fix-1-fixed.zip"
+      - "Douyin-Liquid-Glass-v15-right-edge-black-fix-v1.1.1.zip"
       - ".github/workflows/build.yml"
 
 jobs:
@@ -40,7 +40,14 @@ jobs:
       - name: Extract project
         run: |
           mkdir project
-          unzip -q "Douyin-Liquid-Glass-v15-black-edge-fix-1-fixed.zip" -d project
+          unzip -q "Douyin-Liquid-Glass-v15-right-edge-black-fix-v1.1.1.zip" -d project
+
+      - name: Check extracted project
+        run: |
+          echo "===== Project files ====="
+          ls -la project
+          echo "===== Gradle wrapper ====="
+          ls -la project/gradlew
 
       - name: Make Gradle executable
         working-directory: project
@@ -93,6 +100,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Douyin-Liquid-Glass-v15-black-edge-fix-1-fixed
+          name: Douyin-Liquid-Glass-v15-right-edge-black-fix-v1.1.1
           path: project/app/build/outputs/apk/**/*.apk
           if-no-files-found: error
