@@ -17,25 +17,77 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Check project
+      - name: Inspect repository
         run: |
-          echo "=== Project ==="
+          echo "=== Current directory ==="
           pwd
-          ls -la
 
-          echo "=== Gradle files ==="
-          find . -maxdepth 3 \( \
-            -name "gradlew" -o \
-            -name "settings.gradle*" -o \
-            -name "build.gradle*" -o \
-            -name "gradle-wrapper.properties" \
-          \) -print
+          echo "=== Repository files ==="
+          find . -maxdepth 3 -type f | sort | head -300
 
-      - name: Check Android SDK
+      - name: Locate Android project
+        shell: bash
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-          sdkmanager --version || true
+          set -e
+
+          echo "=== Searching for gradlew ==="
+
+          GRADLEW=$(find . -type f -name "gradlew" -print -quit || true)
+
+          if [ -n "$GRADLEW" ]; then
+            echo "Found gradlew:"
+            echo "$GRADLEW"
+
+          else
+            echo "gradlew not found."
+            echo "Searching for V3 ZIP..."
+
+            ZIP_FILE=$(find . -type f \
+              \( -iname "*v3*.zip" \
+              -o -iname "*hierarchy-diagnostic*.zip" \
+              -o -iname "*bar-height-control*.zip" \) \
+              -print -quit || true)
+
+            if [ -z "$ZIP_FILE" ]; then
+              echo "ERROR: No gradlew and no suitable ZIP found."
+              echo "Repository contents:"
+              find . -maxdepth 4 -type f -print
+              exit 1
+            fi
+
+            echo "Found ZIP:"
+            echo "$ZIP_FILE"
+
+            mkdir -p extracted-v3
+
+            unzip -o "$ZIP_FILE" -d extracted-v3
+
+            echo "=== Extracted files ==="
+            find extracted-v3 -maxdepth 4 -type f -print
+
+            GRADLEW=$(find extracted-v3 \
+              -type f \
+              -name "gradlew" \
+              -print -quit || true)
+
+            if [ -z "$GRADLEW" ]; then
+              echo "ERROR: ZIP does not contain gradlew."
+              exit 1
+            fi
+
+            echo "Found gradlew inside ZIP:"
+            echo "$GRADLEW"
+          fi
+
+          PROJECT_DIR=$(dirname "$GRADLEW")
+
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+          echo "=== Android project directory ==="
+          echo "$PROJECT_DIR"
+
+          echo "=== Project files ==="
+          ls -la "$PROJECT_DIR"
 
       - name: Prepare Gradle repositories
         run: |
@@ -68,28 +120,40 @@ jobs:
           EOF
 
       - name: Make Gradle executable
-        run: chmod +x ./gradlew
+        run: |
+          chmod +x "$PROJECT_DIR/gradlew"
 
       - name: Build Release APK
-        run: ./gradlew assembleRelease --stacktrace
+        run: |
+          cd "$PROJECT_DIR"
+          ./gradlew assembleRelease --stacktrace
 
       - name: Find APK
         run: |
           echo "=== APK files ==="
-          find . -type f -name "*.apk" -print
+          find "$PROJECT_DIR" -type f -name "*.apk" -print
 
       - name: Package V3 build
         run: |
+          set -e
+
           mkdir -p diagnostic-output
 
-          find . -type f -name "*.apk" \
-            ! -path "./diagnostic-output/*" \
+          find "$PROJECT_DIR" \
+            -type f \
+            -name "*.apk" \
             -exec cp {} diagnostic-output/ \;
 
           echo "=== Packaged files ==="
           ls -lah diagnostic-output
 
+          if [ -z "$(find diagnostic-output -type f -name '*.apk' -print -quit)" ]; then
+            echo "ERROR: No APK found."
+            exit 1
+          fi
+
           cd diagnostic-output
+
           zip -r ../Douyin-Liquid-Glass-v3-bar-height-control.zip .
 
       - name: Upload V3 build
