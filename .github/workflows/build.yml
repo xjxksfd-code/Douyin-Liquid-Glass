@@ -1,4 +1,4 @@
-name: Build Douyin Liquid Glass V4
+name: Build Douyin Liquid Glass V5
 
 on:
   workflow_dispatch:
@@ -10,15 +10,14 @@ jobs:
     steps:
 
       # ==========================================
-      # 1. 拉取仓库
+      # 1. Checkout
       # ==========================================
       - name: Checkout repository
         uses: actions/checkout@v4
 
 
       # ==========================================
-      # 2. 安装 JDK 21
-      # 不使用 cache: gradle
+      # 2. JDK 21
       # ==========================================
       - name: Setup JDK 21
         uses: actions/setup-java@v5
@@ -28,26 +27,29 @@ jobs:
 
 
       # ==========================================
-      # 3. 查找 V4 源码 ZIP
+      # 3. 查找 V5 ZIP
       # ==========================================
-      - name: Find V4 source ZIP
+      - name: Find V5 source ZIP
         shell: bash
         run: |
           set -e
 
           echo "======================================"
-          echo "Searching for V4 source ZIP..."
+          echo "Searching for V5 source ZIP"
           echo "======================================"
 
           ZIP_FILE=$(find . \
             -maxdepth 3 \
             -type f \
-            -name 'Douyin-Liquid-Glass-v4-height50-refraction-fix.zip' \
+            \( \
+              -name 'v5src.zip.zip' \
+              -o \
+              -name 'Douyin-Liquid-Glass-v5-refraction-fix.zip' \
+            \) \
             | head -n 1)
 
           if [ -z "$ZIP_FILE" ]; then
-            echo ""
-            echo "ERROR: V4 source ZIP not found."
+            echo "ERROR: V5 source ZIP not found."
             echo ""
             echo "Repository files:"
             find . -maxdepth 4 -type f | sort
@@ -55,22 +57,22 @@ jobs:
           fi
 
           echo ""
-          echo "Found:"
+          echo "Found V5 ZIP:"
           echo "$ZIP_FILE"
 
           echo "ZIP_FILE=$ZIP_FILE" >> "$GITHUB_ENV"
 
 
       # ==========================================
-      # 4. 解压 V4 源码
+      # 4. 解压 V5
       # ==========================================
-      - name: Extract V4 source
+      - name: Extract V5 source
         shell: bash
         run: |
           set -e
 
           echo "======================================"
-          echo "Extracting V4 source..."
+          echo "Extracting V5 source"
           echo "======================================"
 
           rm -rf build-project
@@ -79,58 +81,55 @@ jobs:
           unzip -q "$ZIP_FILE" -d build-project
 
           echo ""
-          echo "Extraction complete."
-
-          echo ""
-          echo "Project files:"
-          find build-project -maxdepth 4 -type f | sort | head -300
+          echo "Extracted files:"
+          find build-project -maxdepth 3 -type f | sort | head -300
 
 
       # ==========================================
-      # 5. 找到真正的 Gradle 项目
+      # 5. 定位 v5src 项目
       # ==========================================
-      - name: Locate Gradle project
+      - name: Locate V5 Gradle project
         shell: bash
         run: |
           set -e
 
-          echo "======================================"
-          echo "Searching for gradlew..."
-          echo "======================================"
+          PROJECT_DIR="build-project/v5src"
 
-          GRADLEW=$(find build-project \
-            -type f \
-            -name gradlew \
-            | head -n 1)
-
-          if [ -z "$GRADLEW" ]; then
-            echo ""
-            echo "ERROR: gradlew not found."
+          if [ ! -f "$PROJECT_DIR/gradlew" ]; then
+            echo "ERROR: v5src/gradlew not found."
 
             echo ""
-            echo "Directory structure:"
-            find build-project -maxdepth 6 -type f | sort
+            echo "Searching for gradlew:"
+            find build-project \
+              -type f \
+              -name gradlew \
+              -print
 
             exit 1
           fi
 
-          PROJECT_DIR=$(dirname "$GRADLEW")
+          if [ ! -f "$PROJECT_DIR/settings.gradle.kts" ]; then
+            echo "ERROR: settings.gradle.kts not found."
+            exit 1
+          fi
 
-          chmod +x "$GRADLEW"
+          if [ ! -d "$PROJECT_DIR/app" ]; then
+            echo "ERROR: app directory not found."
+            exit 1
+          fi
 
-          echo ""
-          echo "Gradle wrapper:"
-          echo "$GRADLEW"
+          chmod +x "$PROJECT_DIR/gradlew"
 
-          echo ""
-          echo "Gradle project directory:"
+          echo "======================================"
+          echo "V5 Gradle project:"
           echo "$PROJECT_DIR"
+          echo "======================================"
 
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
 
       # ==========================================
-      # 6. 检查 JDK 21
+      # 6. 检查 Java
       # ==========================================
       - name: Check Java
         shell: bash
@@ -138,7 +137,7 @@ jobs:
           set -e
 
           echo "======================================"
-          echo "Java information"
+          echo "Java"
           echo "======================================"
 
           java -version
@@ -159,7 +158,7 @@ jobs:
           cd "$PROJECT_DIR"
 
           echo "======================================"
-          echo "Gradle information"
+          echo "Gradle"
           echo "======================================"
 
           ./gradlew --version
@@ -180,7 +179,7 @@ jobs:
           cd "$PROJECT_DIR"
 
           echo "======================================"
-          echo "Building Release APK"
+          echo "Building V5 Release APK"
           echo "======================================"
 
           ./gradlew \
@@ -190,7 +189,7 @@ jobs:
 
 
       # ==========================================
-      # 9. 查找生成的 APK
+      # 9. 查找 APK
       # ==========================================
       - name: Locate built APK
         shell: bash
@@ -198,7 +197,7 @@ jobs:
           set -e
 
           echo "======================================"
-          echo "Searching for Release APK..."
+          echo "Searching for built APK"
           echo "======================================"
 
           find "$PROJECT_DIR" \
@@ -219,7 +218,7 @@ jobs:
           fi
 
           echo ""
-          echo "Found APK:"
+          echo "Built APK:"
           echo "$APK"
 
           echo "APK=$APK" >> "$GITHUB_ENV"
@@ -234,7 +233,7 @@ jobs:
           set -e
 
           echo "======================================"
-          echo "Preparing Android Build Tools..."
+          echo "Preparing Android Build Tools"
           echo "======================================"
 
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
@@ -259,14 +258,14 @@ jobs:
           fi
 
           echo ""
-          echo "Using Build Tools:"
+          echo "Using:"
           echo "$BUILD_TOOLS"
 
           echo "BUILD_TOOLS=$BUILD_TOOLS" >> "$GITHUB_ENV"
 
 
       # ==========================================
-      # 11. 创建临时签名密钥
+      # 11. 生成签名密钥
       # ==========================================
       - name: Generate signing keystore
         shell: bash
@@ -274,7 +273,7 @@ jobs:
           set -e
 
           echo "======================================"
-          echo "Generating signing keystore..."
+          echo "Generating signing keystore"
           echo "======================================"
 
           mkdir -p signing
@@ -292,11 +291,11 @@ jobs:
             -dname "CN=Douyin Liquid Glass, OU=Android, O=Local, L=Tokyo, ST=Tokyo, C=JP"
 
           echo ""
-          echo "Keystore generated successfully."
+          echo "Keystore generated."
 
 
       # ==========================================
-      # 12. 给 APK 签名
+      # 12. 签名 APK
       # ==========================================
       - name: Sign APK
         shell: bash
@@ -305,18 +304,18 @@ jobs:
 
           mkdir -p output
 
-          SIGNED_APK="output/Douyin-Liquid-Glass-v4-signed.apk"
+          SIGNED_APK="output/Douyin-Liquid-Glass-v5-signed.apk"
 
           echo "======================================"
-          echo "Signing APK..."
+          echo "Signing V5 APK"
           echo "======================================"
 
           echo ""
-          echo "Input APK:"
+          echo "Input:"
           echo "$APK"
 
           echo ""
-          echo "Output APK:"
+          echo "Output:"
           echo "$SIGNED_APK"
 
           "$BUILD_TOOLS/apksigner" sign \
@@ -334,7 +333,7 @@ jobs:
 
 
       # ==========================================
-      # 13. 验证 APK 签名
+      # 13. 验证签名
       # ==========================================
       - name: Verify APK signature
         shell: bash
@@ -342,19 +341,19 @@ jobs:
           set -e
 
           echo "======================================"
-          echo "Verifying APK signature..."
+          echo "Verifying APK"
           echo "======================================"
 
           "$BUILD_TOOLS/apksigner" verify \
             --verbose \
-            output/Douyin-Liquid-Glass-v4-signed.apk
+            output/Douyin-Liquid-Glass-v5-signed.apk
 
           echo ""
-          echo "APK signature verification successful."
+          echo "Signature verification successful."
 
 
       # ==========================================
-      # 14. 显示 APK SHA256
+      # 14. 显示 APK 信息
       # ==========================================
       - name: Show APK information
         shell: bash
@@ -362,23 +361,23 @@ jobs:
           set -e
 
           echo "======================================"
-          echo "FINAL APK"
+          echo "FINAL V5 APK"
           echo "======================================"
 
-          ls -lh output/Douyin-Liquid-Glass-v4-signed.apk
+          ls -lh output/Douyin-Liquid-Glass-v5-signed.apk
 
           echo ""
           echo "SHA256:"
-          sha256sum output/Douyin-Liquid-Glass-v4-signed.apk
+          sha256sum output/Douyin-Liquid-Glass-v5-signed.apk
 
 
       # ==========================================
-      # 15. 上传最终 APK
+      # 15. 上传 APK
       # ==========================================
-      - name: Upload signed APK
+      - name: Upload V5 APK
         uses: actions/upload-artifact@v4
         with:
-          name: Douyin-Liquid-Glass-v4-signed
-          path: output/Douyin-Liquid-Glass-v4-signed.apk
+          name: Douyin-Liquid-Glass-v5-signed
+          path: output/Douyin-Liquid-Glass-v5-signed.apk
           if-no-files-found: error
           retention-days: 7
