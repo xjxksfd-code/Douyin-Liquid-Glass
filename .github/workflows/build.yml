@@ -1,4 +1,4 @@
-name: Build Douyin Liquid Glass V3
+name: Build Douyin Liquid Glass V3 Signed
 
 on:
   workflow_dispatch:
@@ -17,76 +17,28 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Inspect repository
-        run: |
-          echo "=== Current directory ==="
-          pwd
-
-          echo "=== Repository files ==="
-          find . -maxdepth 3 -type f | sort | head -300
-
       - name: Locate Android project
         shell: bash
         run: |
           set -e
 
-          echo "=== Searching for gradlew ==="
+          echo "=== Repository ==="
+          pwd
+          find . -maxdepth 3 -type f | sort | head -300
 
           GRADLEW=$(find . -type f -name "gradlew" -print -quit || true)
 
-          if [ -n "$GRADLEW" ]; then
-            echo "Found gradlew:"
-            echo "$GRADLEW"
-
-          else
+          if [ -z "$GRADLEW" ]; then
             echo "gradlew not found."
-            echo "Searching for V3 ZIP..."
-
-            ZIP_FILE=$(find . -type f \
-              \( -iname "*v3*.zip" \
-              -o -iname "*hierarchy-diagnostic*.zip" \
-              -o -iname "*bar-height-control*.zip" \) \
-              -print -quit || true)
-
-            if [ -z "$ZIP_FILE" ]; then
-              echo "ERROR: No gradlew and no suitable ZIP found."
-              echo "Repository contents:"
-              find . -maxdepth 4 -type f -print
-              exit 1
-            fi
-
-            echo "Found ZIP:"
-            echo "$ZIP_FILE"
-
-            mkdir -p extracted-v3
-
-            unzip -o "$ZIP_FILE" -d extracted-v3
-
-            echo "=== Extracted files ==="
-            find extracted-v3 -maxdepth 4 -type f -print
-
-            GRADLEW=$(find extracted-v3 \
-              -type f \
-              -name "gradlew" \
-              -print -quit || true)
-
-            if [ -z "$GRADLEW" ]; then
-              echo "ERROR: ZIP does not contain gradlew."
-              exit 1
-            fi
-
-            echo "Found gradlew inside ZIP:"
-            echo "$GRADLEW"
+            exit 1
           fi
 
           PROJECT_DIR=$(dirname "$GRADLEW")
 
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
-          echo "=== Android project directory ==="
+          echo "=== Android project ==="
           echo "$PROJECT_DIR"
-
-          echo "=== Project files ==="
           ls -la "$PROJECT_DIR"
 
       - name: Prepare Gradle repositories
@@ -126,39 +78,96 @@ jobs:
       - name: Build Release APK
         run: |
           cd "$PROJECT_DIR"
-          ./gradlew assembleRelease --stacktrace
+          ./gradlew clean assembleRelease --stacktrace
 
-      - name: Find APK
-        run: |
-          echo "=== APK files ==="
-          find "$PROJECT_DIR" -type f -name "*.apk" -print
-
-      - name: Package V3 build
+      - name: Locate newly built APK
+        shell: bash
         run: |
           set -e
 
-          mkdir -p diagnostic-output
-
-          find "$PROJECT_DIR" \
+          APK=$(find "$PROJECT_DIR/app/build/outputs/apk/release" \
             -type f \
             -name "*.apk" \
-            -exec cp {} diagnostic-output/ \;
+            -print -quit)
 
-          echo "=== Packaged files ==="
-          ls -lah diagnostic-output
-
-          if [ -z "$(find diagnostic-output -type f -name '*.apk' -print -quit)" ]; then
-            echo "ERROR: No APK found."
+          if [ -z "$APK" ]; then
+            echo "ERROR: Release APK not found."
+            find "$PROJECT_DIR/app/build/outputs" -type f -print || true
             exit 1
           fi
 
-          cd diagnostic-output
+          echo "APK=$APK" >> "$GITHUB_ENV"
 
-          zip -r ../Douyin-Liquid-Glass-v3-bar-height-control.zip .
+          echo "=== Release APK ==="
+          ls -lah "$APK"
 
-      - name: Upload V3 build
+      - name: Generate signing key
+        run: |
+          set -e
+
+          mkdir -p signing
+
+          keytool -genkeypair \
+            -v \
+            -keystore signing/douyin-liquid-glass.jks \
+            -alias douyin \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass douyin123456 \
+            -keypass douyin123456 \
+            -dname "CN=Douyin Liquid Glass, OU=Android, O=LiquidGlass, L=Tokyo, ST=Tokyo, C=JP"
+
+      - name: Sign APK
+        run: |
+          set -e
+
+          BUILD_TOOLS=$(ls -d "$ANDROID_HOME/build-tools/"* | sort -V | tail -1)
+
+          "$BUILD_TOOLS/zipalign" \
+            -f \
+            4 \
+            "$APK" \
+            signed-aligned.apk
+
+          "$BUILD_TOOLS/apksigner" sign \
+            --ks signing/douyin-liquid-glass.jks \
+            --ks-key-alias douyin \
+            --ks-pass pass:douyin123456 \
+            --key-pass pass:douyin123456 \
+            --out Douyin-Liquid-Glass-v3-signed.apk \
+            signed-aligned.apk
+
+      - name: Verify APK signature
+        run: |
+          set -e
+
+          BUILD_TOOLS=$(ls -d "$ANDROID_HOME/build-tools/"* | sort -V | tail -1)
+
+          "$BUILD_TOOLS/apksigner" verify \
+            --verbose \
+            Douyin-Liquid-Glass-v3-signed.apk
+
+      - name: Package signed APK
+        run: |
+          set -e
+
+          mkdir -p output
+
+          cp Douyin-Liquid-Glass-v3-signed.apk output/
+
+          echo "=== Final output ==="
+          ls -lah output
+
+          cd output
+
+          zip -r ../Douyin-Liquid-Glass-v3-bar-height-control-signed.zip .
+
+      - name: Upload signed APK
         uses: actions/upload-artifact@v4
         with:
-          name: Douyin-Liquid-Glass-v3-bar-height-control
-          path: Douyin-Liquid-Glass-v3-bar-height-control.zip
+          name: Douyin-Liquid-Glass-v3-bar-height-control-signed
+          path: |
+            Douyin-Liquid-Glass-v3-signed.apk
+            Douyin-Liquid-Glass-v3-bar-height-control-signed.zip
           if-no-files-found: error
