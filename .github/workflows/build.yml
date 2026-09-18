@@ -17,8 +17,12 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Check Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          sdkmanager --version || true
+          ls -la "$ANDROID_HOME" || true
 
       - name: Prepare Gradle repositories
         run: |
@@ -57,11 +61,12 @@ jobs:
           pwd
           ls -la
 
-          echo "=== Gradle ==="
+          echo "=== Gradle files ==="
           find . -maxdepth 3 \( \
             -name "gradlew" -o \
             -name "settings.gradle*" -o \
-            -name "build.gradle*" \
+            -name "build.gradle*" -o \
+            -name "gradle-wrapper.properties" \
           \) -print
 
       - name: Make Gradle executable
