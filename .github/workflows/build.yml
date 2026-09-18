@@ -10,21 +10,21 @@ jobs:
     steps:
 
       # ==========================================
-      # 1. 拉取 GitHub 仓库
+      # 1. 拉取仓库
       # ==========================================
       - name: Checkout repository
         uses: actions/checkout@v4
 
 
       # ==========================================
-      # 2. 使用 JDK 21
+      # 2. 安装 JDK 21
+      # 不使用 cache: gradle
       # ==========================================
       - name: Setup JDK 21
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
-          cache: gradle
 
 
       # ==========================================
@@ -35,19 +35,27 @@ jobs:
         run: |
           set -e
 
-          ZIP_FILE=$(find . -maxdepth 2 -type f \
+          echo "======================================"
+          echo "Searching for V4 source ZIP..."
+          echo "======================================"
+
+          ZIP_FILE=$(find . \
+            -maxdepth 3 \
+            -type f \
             -name 'Douyin-Liquid-Glass-v4-height50-refraction-fix.zip' \
             | head -n 1)
 
           if [ -z "$ZIP_FILE" ]; then
+            echo ""
             echo "ERROR: V4 source ZIP not found."
             echo ""
             echo "Repository files:"
-            find . -maxdepth 3 -type f | sort
+            find . -maxdepth 4 -type f | sort
             exit 1
           fi
 
-          echo "Found V4 source:"
+          echo ""
+          echo "Found:"
           echo "$ZIP_FILE"
 
           echo "ZIP_FILE=$ZIP_FILE" >> "$GITHUB_ENV"
@@ -61,25 +69,34 @@ jobs:
         run: |
           set -e
 
+          echo "======================================"
+          echo "Extracting V4 source..."
+          echo "======================================"
+
           rm -rf build-project
           mkdir -p build-project
 
           unzip -q "$ZIP_FILE" -d build-project
 
-          echo "======================================"
-          echo "Extracted source:"
-          echo "======================================"
+          echo ""
+          echo "Extraction complete."
 
-          find build-project -maxdepth 3 -type f | sort | head -300
+          echo ""
+          echo "Project files:"
+          find build-project -maxdepth 4 -type f | sort | head -300
 
 
       # ==========================================
-      # 5. 自动寻找 Gradle 项目根目录
+      # 5. 找到真正的 Gradle 项目
       # ==========================================
       - name: Locate Gradle project
         shell: bash
         run: |
           set -e
+
+          echo "======================================"
+          echo "Searching for gradlew..."
+          echo "======================================"
 
           GRADLEW=$(find build-project \
             -type f \
@@ -87,40 +104,41 @@ jobs:
             | head -n 1)
 
           if [ -z "$GRADLEW" ]; then
+            echo ""
             echo "ERROR: gradlew not found."
 
             echo ""
-            echo "Project files:"
-            find build-project -maxdepth 5 -type f | sort
+            echo "Directory structure:"
+            find build-project -maxdepth 6 -type f | sort
 
             exit 1
           fi
 
           PROJECT_DIR=$(dirname "$GRADLEW")
 
-          echo "======================================"
+          chmod +x "$GRADLEW"
+
+          echo ""
           echo "Gradle wrapper:"
           echo "$GRADLEW"
+
           echo ""
-          echo "Project directory:"
+          echo "Gradle project directory:"
           echo "$PROJECT_DIR"
-          echo "======================================"
 
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
-          chmod +x "$GRADLEW"
-
 
       # ==========================================
-      # 6. 检查 Java / Gradle
+      # 6. 检查 JDK 21
       # ==========================================
-      - name: Check Java and Gradle
+      - name: Check Java
         shell: bash
         run: |
           set -e
 
           echo "======================================"
-          echo "Java version"
+          echo "Java information"
           echo "======================================"
 
           java -version
@@ -129,25 +147,26 @@ jobs:
           echo "JAVA_HOME:"
           echo "$JAVA_HOME"
 
-          echo ""
-          echo "======================================"
-          echo "Gradle project"
-          echo "======================================"
+
+      # ==========================================
+      # 7. 检查 Gradle
+      # ==========================================
+      - name: Check Gradle
+        shell: bash
+        run: |
+          set -e
 
           cd "$PROJECT_DIR"
 
-          ls -la
-
-          echo ""
           echo "======================================"
-          echo "Gradle version"
+          echo "Gradle information"
           echo "======================================"
 
           ./gradlew --version
 
 
       # ==========================================
-      # 7. 构建 Release APK
+      # 8. 构建 Release APK
       # ==========================================
       - name: Build Release APK
         shell: bash
@@ -171,7 +190,7 @@ jobs:
 
 
       # ==========================================
-      # 8. 查找真正的新 APK
+      # 9. 查找生成的 APK
       # ==========================================
       - name: Locate built APK
         shell: bash
@@ -179,7 +198,7 @@ jobs:
           set -e
 
           echo "======================================"
-          echo "Release APK files"
+          echo "Searching for Release APK..."
           echo "======================================"
 
           find "$PROJECT_DIR" \
@@ -200,25 +219,27 @@ jobs:
           fi
 
           echo ""
-          echo "Built APK:"
+          echo "Found APK:"
           echo "$APK"
 
           echo "APK=$APK" >> "$GITHUB_ENV"
 
 
       # ==========================================
-      # 9. 准备 Android Build Tools
+      # 10. 准备 Android Build Tools
       # ==========================================
       - name: Prepare Android build tools
         shell: bash
         run: |
           set -e
 
+          echo "======================================"
+          echo "Preparing Android Build Tools..."
+          echo "======================================"
+
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
 
           if [ -x "$SDKMANAGER" ]; then
-            echo "Installing Android build-tools 35.0.0..."
-
             "$SDKMANAGER" \
               --install \
               "build-tools;35.0.0" \
@@ -237,21 +258,24 @@ jobs:
             exit 1
           fi
 
-          echo "======================================"
-          echo "Android Build Tools:"
+          echo ""
+          echo "Using Build Tools:"
           echo "$BUILD_TOOLS"
-          echo "======================================"
 
           echo "BUILD_TOOLS=$BUILD_TOOLS" >> "$GITHUB_ENV"
 
 
       # ==========================================
-      # 10. 生成临时签名密钥
+      # 11. 创建临时签名密钥
       # ==========================================
       - name: Generate signing keystore
         shell: bash
         run: |
           set -e
+
+          echo "======================================"
+          echo "Generating signing keystore..."
+          echo "======================================"
 
           mkdir -p signing
 
@@ -272,7 +296,7 @@ jobs:
 
 
       # ==========================================
-      # 11. 签名 APK
+      # 12. 给 APK 签名
       # ==========================================
       - name: Sign APK
         shell: bash
@@ -281,16 +305,19 @@ jobs:
 
           mkdir -p output
 
-          UNSIGNED_APK="$APK"
           SIGNED_APK="output/Douyin-Liquid-Glass-v4-signed.apk"
 
           echo "======================================"
-          echo "Unsigned APK:"
-          echo "$UNSIGNED_APK"
-          echo ""
-          echo "Signed APK:"
-          echo "$SIGNED_APK"
+          echo "Signing APK..."
           echo "======================================"
+
+          echo ""
+          echo "Input APK:"
+          echo "$APK"
+
+          echo ""
+          echo "Output APK:"
+          echo "$SIGNED_APK"
 
           "$BUILD_TOOLS/apksigner" sign \
             --ks signing/release.keystore \
@@ -298,7 +325,7 @@ jobs:
             --ks-pass pass:douyin123456 \
             --key-pass pass:douyin123456 \
             --out "$SIGNED_APK" \
-            "$UNSIGNED_APK"
+            "$APK"
 
           echo ""
           echo "APK signed successfully."
@@ -307,7 +334,7 @@ jobs:
 
 
       # ==========================================
-      # 12. 验证签名
+      # 13. 验证 APK 签名
       # ==========================================
       - name: Verify APK signature
         shell: bash
@@ -315,7 +342,7 @@ jobs:
           set -e
 
           echo "======================================"
-          echo "Verifying APK signature"
+          echo "Verifying APK signature..."
           echo "======================================"
 
           "$BUILD_TOOLS/apksigner" verify \
@@ -323,13 +350,13 @@ jobs:
             output/Douyin-Liquid-Glass-v4-signed.apk
 
           echo ""
-          echo "Signature verification successful."
+          echo "APK signature verification successful."
 
 
       # ==========================================
-      # 13. 显示最终 APK 信息
+      # 14. 显示 APK SHA256
       # ==========================================
-      - name: Show final APK
+      - name: Show APK information
         shell: bash
         run: |
           set -e
@@ -346,7 +373,7 @@ jobs:
 
 
       # ==========================================
-      # 14. 上传最终 APK
+      # 15. 上传最终 APK
       # ==========================================
       - name: Upload signed APK
         uses: actions/upload-artifact@v4
