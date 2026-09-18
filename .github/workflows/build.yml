@@ -6,7 +6,7 @@ on:
   push:
     branches: ["main"]
     paths:
-      - "Douyin-Liquid-Glass-v15-hierarchy-diagnostic-v2.zip"
+      - "Douyin-Liquid-Glass-v15-hierarchy-diagnostic-v3.zip"
       - ".github/workflows/build.yml"
 
 jobs:
@@ -41,7 +41,7 @@ jobs:
       - name: Extract project
         run: |
           mkdir project
-          unzip -q "Douyin-Liquid-Glass-v15-hierarchy-diagnostic-v2.zip" -d project
+          unzip -q "Douyin-Liquid-Glass-v15-hierarchy-diagnostic-v3.zip" -d project
 
       - name: Make Gradle executable
         working-directory: project
@@ -93,6 +93,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Douyin-Liquid-Glass-v15-hierarchy-diagnostic-v2
+          name: Douyin-Liquid-Glass-v15-hierarchy-diagnostic-v3
           path: project/app/build/outputs/apk/**/*.apk
           if-no-files-found: error
