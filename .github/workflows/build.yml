@@ -1,4 +1,4 @@
-name: Build Douyin Liquid Glass Diagnostic
+name: Build Douyin Liquid Glass V3
 
 on:
   workflow_dispatch:
@@ -22,7 +22,6 @@ jobs:
           echo "ANDROID_HOME=$ANDROID_HOME"
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
           sdkmanager --version || true
-          ls -la "$ANDROID_HOME" || true
 
       - name: Prepare Gradle repositories
         run: |
@@ -83,7 +82,7 @@ jobs:
           echo "=== APK files ==="
           find . -type f -name "*.apk" -print
 
-      - name: Package diagnostic APK
+      - name: Package V3 APK
         run: |
           mkdir -p diagnostic-output
 
@@ -93,11 +92,11 @@ jobs:
           ls -lah diagnostic-output
 
           cd diagnostic-output
-          zip -r ../Douyin-Liquid-Glass-v15-diagnostic-instrumented.zip .
+          zip -r ../Douyin-Liquid-Glass-v3-bar-height-control.zip .
 
-      - name: Upload diagnostic build
+      - name: Upload V3 build
         uses: actions/upload-artifact@v4
         with:
-          name: Douyin-Liquid-Glass-v15-diagnostic-instrumented
-          path: Douyin-Liquid-Glass-v15-diagnostic-instrumented.zip
+          name: Douyin-Liquid-Glass-v3-bar-height-control
+          path: Douyin-Liquid-Glass-v3-bar-height-control.zip
           if-no-files-found: error
