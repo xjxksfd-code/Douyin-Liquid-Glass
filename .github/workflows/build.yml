@@ -17,7 +17,7 @@ jobs:
 
 
       # ==========================================
-      # 2. JDK 21
+      # 2. Setup JDK 21
       # ==========================================
       - name: Setup JDK 21
         uses: actions/setup-java@v5
@@ -27,7 +27,7 @@ jobs:
 
 
       # ==========================================
-      # 3. 查找 V5 ZIP
+      # 3. Find V5 source ZIP
       # ==========================================
       - name: Find V5 source ZIP
         shell: bash
@@ -39,7 +39,7 @@ jobs:
           echo "======================================"
 
           ZIP_FILE=$(find . \
-            -maxdepth 3 \
+            -maxdepth 4 \
             -type f \
             \( \
               -name 'v5src.zip.zip' \
@@ -49,10 +49,11 @@ jobs:
             | head -n 1)
 
           if [ -z "$ZIP_FILE" ]; then
+            echo ""
             echo "ERROR: V5 source ZIP not found."
             echo ""
             echo "Repository files:"
-            find . -maxdepth 4 -type f | sort
+            find . -maxdepth 5 -type f | sort
             exit 1
           fi
 
@@ -64,7 +65,7 @@ jobs:
 
 
       # ==========================================
-      # 4. 解压 V5
+      # 4. Extract V5 source
       # ==========================================
       - name: Extract V5 source
         shell: bash
@@ -81,55 +82,88 @@ jobs:
           unzip -q "$ZIP_FILE" -d build-project
 
           echo ""
-          echo "Extracted files:"
-          find build-project -maxdepth 3 -type f | sort | head -300
+          echo "Extracted tree:"
+          find build-project -maxdepth 5 -print | sort
 
 
       # ==========================================
-      # 5. 定位 v5src 项目
+      # 5. Automatically locate Gradle project
       # ==========================================
       - name: Locate V5 Gradle project
         shell: bash
         run: |
           set -e
 
-          PROJECT_DIR="build-project/v5src"
+          echo "======================================"
+          echo "Locating V5 Gradle project"
+          echo "======================================"
 
-          if [ ! -f "$PROJECT_DIR/gradlew" ]; then
-            echo "ERROR: v5src/gradlew not found."
+          PROJECT_DIR=$(find build-project \
+            -type f \
+            -name gradlew \
+            -print \
+            | head -n 1 \
+            | xargs -r dirname)
+
+          if [ -z "$PROJECT_DIR" ]; then
+            echo ""
+            echo "ERROR: gradlew not found anywhere."
 
             echo ""
-            echo "Searching for gradlew:"
-            find build-project \
-              -type f \
-              -name gradlew \
-              -print
+            echo "Full extracted tree:"
+            find build-project -maxdepth 6 -print | sort
 
             exit 1
           fi
 
+          echo ""
+          echo "Found gradlew:"
+          echo "$PROJECT_DIR/gradlew"
+
           if [ ! -f "$PROJECT_DIR/settings.gradle.kts" ]; then
+            echo ""
             echo "ERROR: settings.gradle.kts not found."
+            echo "Project directory:"
+            echo "$PROJECT_DIR"
+
+            echo ""
+            echo "Files in project:"
+            find "$PROJECT_DIR" -maxdepth 3 -type f | sort
+
             exit 1
           fi
 
           if [ ! -d "$PROJECT_DIR/app" ]; then
+            echo ""
             echo "ERROR: app directory not found."
+            echo "Project directory:"
+            echo "$PROJECT_DIR"
+
+            echo ""
+            echo "Files in project:"
+            find "$PROJECT_DIR" -maxdepth 3 -print | sort
+
             exit 1
           fi
 
           chmod +x "$PROJECT_DIR/gradlew"
 
+          echo ""
           echo "======================================"
           echo "V5 Gradle project:"
           echo "$PROJECT_DIR"
           echo "======================================"
 
+          echo ""
+          echo "Project files:"
+          find "$PROJECT_DIR" -maxdepth 3 -type f | sort
+
+          echo ""
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
 
       # ==========================================
-      # 6. 检查 Java
+      # 6. Check Java
       # ==========================================
       - name: Check Java
         shell: bash
@@ -148,7 +182,7 @@ jobs:
 
 
       # ==========================================
-      # 7. 检查 Gradle
+      # 7. Check Gradle
       # ==========================================
       - name: Check Gradle
         shell: bash
@@ -165,7 +199,7 @@ jobs:
 
 
       # ==========================================
-      # 8. 构建 Release APK
+      # 8. Build Release APK
       # ==========================================
       - name: Build Release APK
         shell: bash
@@ -189,7 +223,7 @@ jobs:
 
 
       # ==========================================
-      # 9. 查找 APK
+      # 9. Locate built APK
       # ==========================================
       - name: Locate built APK
         shell: bash
@@ -199,6 +233,9 @@ jobs:
           echo "======================================"
           echo "Searching for built APK"
           echo "======================================"
+
+          echo ""
+          echo "Release APK files:"
 
           find "$PROJECT_DIR" \
             -type f \
@@ -214,6 +251,14 @@ jobs:
           if [ -z "$APK" ]; then
             echo ""
             echo "ERROR: Release APK not found."
+
+            echo ""
+            echo "All APK files:"
+            find "$PROJECT_DIR" \
+              -type f \
+              -name '*.apk' \
+              -print
+
             exit 1
           fi
 
@@ -225,9 +270,9 @@ jobs:
 
 
       # ==========================================
-      # 10. 准备 Android Build Tools
+      # 10. Prepare Android Build Tools
       # ==========================================
-      - name: Prepare Android build tools
+      - name: Prepare Android Build Tools
         shell: bash
         run: |
           set -e
@@ -239,33 +284,65 @@ jobs:
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
 
           if [ -x "$SDKMANAGER" ]; then
-            "$SDKMANAGER" \
+
+            echo ""
+            echo "Installing build-tools 35.0.0..."
+
+            yes | "$SDKMANAGER" \
               --install \
               "build-tools;35.0.0" \
               || true
+
+          else
+
+            echo ""
+            echo "WARNING: sdkmanager not found."
+
           fi
 
-          BUILD_TOOLS=$(find "$ANDROID_HOME/build-tools" \
-            -maxdepth 1 \
-            -mindepth 1 \
-            -type d \
-            | sort -V \
-            | tail -n 1)
+          BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
+
+          if [ ! -x "$BUILD_TOOLS/apksigner" ]; then
+
+            echo ""
+            echo "35.0.0 apksigner not found."
+            echo "Searching installed build-tools..."
+
+            BUILD_TOOLS=$(find "$ANDROID_HOME/build-tools" \
+              -maxdepth 1 \
+              -mindepth 1 \
+              -type d \
+              | sort -V \
+              | tail -n 1)
+
+          fi
 
           if [ -z "$BUILD_TOOLS" ]; then
+            echo ""
             echo "ERROR: Android build-tools not found."
             exit 1
           fi
 
+          if [ ! -x "$BUILD_TOOLS/apksigner" ]; then
+            echo ""
+            echo "ERROR: apksigner not found:"
+            echo "$BUILD_TOOLS/apksigner"
+            exit 1
+          fi
+
           echo ""
-          echo "Using:"
+          echo "Using Android Build Tools:"
           echo "$BUILD_TOOLS"
+
+          echo ""
+          echo "apksigner:"
+          "$BUILD_TOOLS/apksigner" --version
 
           echo "BUILD_TOOLS=$BUILD_TOOLS" >> "$GITHUB_ENV"
 
 
       # ==========================================
-      # 11. 生成签名密钥
+      # 11. Generate temporary signing keystore
       # ==========================================
       - name: Generate signing keystore
         shell: bash
@@ -291,11 +368,11 @@ jobs:
             -dname "CN=Douyin Liquid Glass, OU=Android, O=Local, L=Tokyo, ST=Tokyo, C=JP"
 
           echo ""
-          echo "Keystore generated."
+          echo "Keystore generated successfully."
 
 
       # ==========================================
-      # 12. 签名 APK
+      # 12. Sign APK
       # ==========================================
       - name: Sign APK
         shell: bash
@@ -311,11 +388,11 @@ jobs:
           echo "======================================"
 
           echo ""
-          echo "Input:"
+          echo "Input APK:"
           echo "$APK"
 
           echo ""
-          echo "Output:"
+          echo "Output APK:"
           echo "$SIGNED_APK"
 
           "$BUILD_TOOLS/apksigner" sign \
@@ -333,7 +410,7 @@ jobs:
 
 
       # ==========================================
-      # 13. 验证签名
+      # 13. Verify APK signature
       # ==========================================
       - name: Verify APK signature
         shell: bash
@@ -353,7 +430,7 @@ jobs:
 
 
       # ==========================================
-      # 14. 显示 APK 信息
+      # 14. Show final APK information
       # ==========================================
       - name: Show APK information
         shell: bash
@@ -370,9 +447,13 @@ jobs:
           echo "SHA256:"
           sha256sum output/Douyin-Liquid-Glass-v5-signed.apk
 
+          echo ""
+          echo "APK location:"
+          realpath output/Douyin-Liquid-Glass-v5-signed.apk
+
 
       # ==========================================
-      # 15. 上传 APK
+      # 15. Upload APK artifact
       # ==========================================
       - name: Upload V5 APK
         uses: actions/upload-artifact@v4
