@@ -17,6 +17,20 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      - name: Check project
+        run: |
+          echo "=== Project ==="
+          pwd
+          ls -la
+
+          echo "=== Gradle files ==="
+          find . -maxdepth 3 \( \
+            -name "gradlew" -o \
+            -name "settings.gradle*" -o \
+            -name "build.gradle*" -o \
+            -name "gradle-wrapper.properties" \
+          \) -print
+
       - name: Check Android SDK
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME"
@@ -53,40 +67,24 @@ jobs:
           }
           EOF
 
-      - name: Check project
-        working-directory: project
-        run: |
-          echo "=== Project ==="
-          pwd
-          ls -la
-
-          echo "=== Gradle files ==="
-          find . -maxdepth 3 \( \
-            -name "gradlew" -o \
-            -name "settings.gradle*" -o \
-            -name "build.gradle*" -o \
-            -name "gradle-wrapper.properties" \
-          \) -print
-
       - name: Make Gradle executable
-        working-directory: project
         run: chmod +x ./gradlew
 
       - name: Build Release APK
-        working-directory: project
         run: ./gradlew assembleRelease --stacktrace
 
       - name: Find APK
-        working-directory: project
         run: |
           echo "=== APK files ==="
           find . -type f -name "*.apk" -print
 
-      - name: Package V3 APK
+      - name: Package V3 build
         run: |
           mkdir -p diagnostic-output
 
-          find project -type f -name "*.apk" -exec cp {} diagnostic-output/ \;
+          find . -type f -name "*.apk" \
+            ! -path "./diagnostic-output/*" \
+            -exec cp {} diagnostic-output/ \;
 
           echo "=== Packaged files ==="
           ls -lah diagnostic-output
