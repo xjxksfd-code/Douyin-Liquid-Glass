@@ -16,6 +16,7 @@ import com.autumn.douyin.liquidglass.ModuleLog
  */
 class NativeBottomBarStateMonitor(
     private val nativeBar: NativeBottomBar,
+    private val onSelectedTabChanged: (Int) -> Unit = {},
     private val onPresentChanged: (Boolean, Boolean) -> Unit,
 ) {
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -23,6 +24,7 @@ class NativeBottomBarStateMonitor(
     private var lastObservedPresent: Boolean? = null
     private var confirmedPresent: Boolean? = null
     private var absentSinceMs: Long? = null
+    private var lastObservedSelectedIndex: Int? = null
 
     private val poller = object : Runnable {
         override fun run() {
@@ -38,6 +40,7 @@ class NativeBottomBarStateMonitor(
         lastObservedPresent = null
         confirmedPresent = null
         absentSinceMs = null
+        lastObservedSelectedIndex = null
         ModuleLog.info("native bar state monitor started")
         sample()
         mainHandler.postDelayed(poller, SamplingIntervalMs)
@@ -50,10 +53,18 @@ class NativeBottomBarStateMonitor(
         lastObservedPresent = null
         confirmedPresent = null
         absentSinceMs = null
+        lastObservedSelectedIndex = null
         ModuleLog.info("native bar state monitor stopped")
     }
 
     private fun sample() {
+        val selectedIndex = nativeBar.selectedIndex
+        if (selectedIndex != lastObservedSelectedIndex) {
+            lastObservedSelectedIndex = selectedIndex
+            onSelectedTabChanged(selectedIndex)
+            ModuleLog.info { "native bottom bar selected tab=$selectedIndex" }
+        }
+
         val parent = nativeBar.home.parent as? View
         val parentPresent = parent != null &&
             parent.isAttachedToWindow &&

@@ -408,7 +408,10 @@ class LiquidGlassHook : IXposedHookLoadPackage {
                 initialSettings = ModuleSettingsBridge.current,
                 expandContentToWindow = overlayGeometry.edgeToEdge,
             )
-            val stateMonitor = NativeBottomBarStateMonitor(nativeBar) { present, stable ->
+            val stateMonitor = NativeBottomBarStateMonitor(
+                nativeBar = nativeBar,
+                onSelectedTabChanged = controller::syncSelectedTab,
+            ) { present, stable ->
                 overlay.setNativeBarPresent(present, stable)
             }
             controller.start()
