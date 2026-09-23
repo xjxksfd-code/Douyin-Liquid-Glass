@@ -53,21 +53,15 @@ jobs:
       - name: Install Android SDK packages
         shell: bash
         run: |
-          install_pkg() {
-            local pkg="$1"
-            for ch in 3 2 1 0; do
-              if sdkmanager --channel="$ch" --list 2>/dev/null | grep -Fq "$pkg"; then
-                echo "Installing $pkg from channel $ch"
-                sdkmanager --channel="$ch" --install "$pkg"
-                return 0
-              fi
-            done
-            echo "Falling back to default channel for $pkg"
-            sdkmanager --install "$pkg"
-          }
-          install_pkg 'platform-tools'
-          install_pkg 'platforms;android-37'
-          install_pkg 'build-tools;36.0.0'
+          set -o pipefail
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-37.0" \
+            "build-tools;37.0.0" \
+            || { echo '--- retry after license accept ---'; yes | sdkmanager --licenses >/dev/null 2>&1 || true; sdkmanager --install "platforms;android-37.0" "build-tools;37.0.0"; }
+          echo '--- installed packages ---'
+          ls "$ANDROID_HOME/platforms" || true
+          ls "$ANDROID_HOME/build-tools" || true
 
       - name: Ensure Gradle wrapper is executable
         run: chmod +x gradlew
