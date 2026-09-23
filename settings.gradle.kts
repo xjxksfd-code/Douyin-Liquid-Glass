@@ -11,7 +11,6 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-}
 
 rootProject.name = "Douyin-Liquid-Glass"
 include(":app")
