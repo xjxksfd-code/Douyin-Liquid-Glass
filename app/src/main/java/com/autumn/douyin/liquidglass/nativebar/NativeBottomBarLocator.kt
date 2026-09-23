@@ -15,8 +15,12 @@ data class NativeBottomBar(
     val tabs: List<View> = listOf(home, friends, messages, profile)
     val all: List<View> = listOf(home, friends, plus, messages, profile)
 
+    /** 原生 Tab 当前选中的下标；没有任何 Tab 处于选中态（如过渡期）时为 null。 */
+    val selectedIndexOrNull: Int?
+        get() = tabs.indexOfFirst { it.isSelected }.takeIf { it >= 0 }
+
     val selectedIndex: Int
-        get() = tabs.indexOfFirst { it.isSelected }.takeIf { it >= 0 } ?: 0
+        get() = selectedIndexOrNull ?: 0
 
     fun clickTab(index: Int): Boolean = tabs.getOrNull(index)?.performClick() == true
 
