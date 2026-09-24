@@ -3,9 +3,11 @@ name: Build Android APK
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches:
+      - main
   pull_request:
-    branches: [main]
+    branches:
+      - main
 
 permissions:
   contents: read
@@ -15,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out source
+      - name: Checkout source
         uses: actions/checkout@v6
 
       - name: Set up JDK 21
@@ -27,18 +29,26 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
+        with:
+          packages: ""
 
-      - name: Install Android SDK
+      - name: Install Android SDK packages
         run: |
           sdkmanager --install \
+            "platform-tools" \
             "platforms;android-36" \
             "build-tools;36.0.0"
 
       - name: Make Gradle wrapper executable
-        run: chmod +x gradlew
+        run: chmod +x ./gradlew
 
-      - name: Setup Gradle
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
+
+      - name: Check Java and Gradle
+        run: |
+          java -version
+          ./gradlew --version
 
       - name: Build Debug APK
         run: |
@@ -50,6 +60,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Douyin-Liquid-Glass-back-sync-v1
+          name: Douyin-Liquid-Glass-debug
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
