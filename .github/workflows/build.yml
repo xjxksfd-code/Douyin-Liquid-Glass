@@ -31,8 +31,8 @@ jobs:
       - name: Install Android SDK
         run: |
           sdkmanager --install \
-            "platforms;android-37" \
-            "build-tools;35.0.0"
+            "platforms;android-36" \
+            "build-tools;36.0.0"
 
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
